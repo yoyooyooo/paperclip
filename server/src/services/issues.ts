@@ -1098,7 +1098,10 @@ export function issueService(db: Db) {
           )
           .returning()
           .then((rows) => rows[0] ?? null);
-        if (adopted) return adopted;
+        if (adopted) {
+          const [enriched] = await withIssueLabels(db, [adopted]);
+          return enriched;
+        }
       }
 
       if (

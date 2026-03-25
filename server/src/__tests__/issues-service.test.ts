@@ -11,8 +11,11 @@ import {
   companies,
   createDb,
   ensurePostgresDatabase,
+  heartbeatRuns,
   issueComments,
+  issueLabels,
   issues,
+  labels,
 } from "@paperclipai/db";
 import { issueService } from "../services/issues.ts";
 
@@ -99,7 +102,10 @@ describe("issueService.list participantAgentId", () => {
   afterEach(async () => {
     await db.delete(issueComments);
     await db.delete(activityLog);
+    await db.delete(issueLabels);
+    await db.delete(labels);
     await db.delete(issues);
+    await db.delete(heartbeatRuns);
     await db.delete(agents);
     await db.delete(companies);
   });
@@ -280,5 +286,75 @@ describe("issueService.list participantAgentId", () => {
     });
 
     expect(result.map((issue) => issue.id)).toEqual([matchedIssueId]);
+  });
+
+  it("preserves labels when adopting an in-progress issue into a run checkout", async () => {
+    const companyId = randomUUID();
+    const agentId = randomUUID();
+    const issueId = randomUUID();
+    const runId = randomUUID();
+    const labelId = randomUUID();
+
+    await db.insert(companies).values({
+      id: companyId,
+      name: "Paperclip",
+      issuePrefix: `T${companyId.replace(/-/g, "").slice(0, 6).toUpperCase()}`,
+      requireBoardApprovalForNewAgents: false,
+    });
+
+    await db.insert(agents).values({
+      id: agentId,
+      companyId,
+      name: "CodexCoder",
+      role: "engineer",
+      status: "active",
+      adapterType: "codex_local",
+      adapterConfig: {},
+      runtimeConfig: {},
+      permissions: {},
+    });
+
+    await db.insert(heartbeatRuns).values({
+      id: runId,
+      companyId,
+      agentId,
+      invocationSource: "assignment",
+      status: "running",
+      startedAt: new Date(),
+    });
+
+    await db.insert(issues).values({
+      id: issueId,
+      companyId,
+      title: "Adopt stale checkout",
+      status: "in_progress",
+      priority: "medium",
+      assigneeAgentId: agentId,
+    });
+
+    await db.insert(labels).values({
+      id: labelId,
+      companyId,
+      name: "checkout",
+      color: "#ff6600",
+    });
+
+    await db.insert(issueLabels).values({
+      issueId,
+      labelId,
+      companyId,
+    });
+
+    const result = await svc.checkout(issueId, agentId, ["todo", "backlog", "blocked"], runId);
+
+    expect(result.checkoutRunId).toBe(runId);
+    expect(result.executionRunId).toBe(runId);
+    expect(result.labelIds).toEqual([labelId]);
+    expect(result.labels).toEqual([
+      expect.objectContaining({
+        id: labelId,
+        name: "checkout",
+      }),
+    ]);
   });
 });
