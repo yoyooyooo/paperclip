@@ -80,10 +80,10 @@ describe("ensureAgentHomeBootstrap", () => {
     expect(home).toBe(resolveDefaultAgentWorkspaceDir(agentId));
     await expect(fs.readFile(path.join(home, "MEMORY.md"), "utf8")).resolves.toContain("# Memory");
     await expect(fs.readFile(path.join(home, "life", "index.md"), "utf8")).resolves.toContain("# Life");
-    await expect(fs.stat(path.join(home, "life", "projects"))).resolves.toMatchObject({ isDirectory: expect.any(Function) });
-    await expect(fs.stat(path.join(home, "life", "areas"))).resolves.toMatchObject({ isDirectory: expect.any(Function) });
-    await expect(fs.stat(path.join(home, "life", "resources"))).resolves.toMatchObject({ isDirectory: expect.any(Function) });
-    await expect(fs.stat(path.join(home, "life", "archives"))).resolves.toMatchObject({ isDirectory: expect.any(Function) });
+    for (const dir of ["projects", "areas", "resources", "archives"]) {
+      const stat = await fs.stat(path.join(home, "life", dir));
+      expect(stat.isDirectory()).toBe(true);
+    }
     await expect(fs.readFile(path.join(home, "memory", "2026-03-26.md"), "utf8")).resolves.toContain("## Today's Plan");
     await expect(fs.readFile(path.join(home, "memory", "2026-03-26.md"), "utf8")).resolves.toContain("## Timeline");
   });

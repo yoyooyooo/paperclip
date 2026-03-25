@@ -98,7 +98,7 @@ function formatAgentHomeDate(value: Date): string {
 
 async function writeAgentHomeFileIfMissing(targetPath: string, content: string) {
   const existing = await fs.stat(targetPath).catch(() => null);
-  if (existing?.isFile()) return;
+  if (existing?.isFile() || existing?.isDirectory()) return;
   await fs.mkdir(path.dirname(targetPath), { recursive: true });
   await fs.writeFile(targetPath, content, "utf8");
 }
